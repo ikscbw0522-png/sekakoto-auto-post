@@ -1,0 +1,17 @@
+# 機密情報
+.env
+
+# 旧版（push不要）
+carousels_v2/
+carousels/
+thumbnails/
+thumbnails_v2/
+
+# 使い捨てファイル
+logo*.jpg
+*.DS_Store
+__pycache__/
+*.pyc
+
+# スクショ
+スクリーンショット*.png
