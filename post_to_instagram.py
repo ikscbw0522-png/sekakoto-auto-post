@@ -8,12 +8,15 @@
 import argparse
 import base64
 import glob
+import json
 import os
 import sys
 import time
 from pathlib import Path
 
 import requests
+
+URL_JSON = Path(__file__).parent / "image_urls.json"
 
 ENV_PATH = Path(__file__).parent / ".env"
 
@@ -133,15 +136,25 @@ def main():
         print("\n[dry-run] 実投稿しませんでした。")
         return
 
-    print("\n[1/3] WordPressに画像をアップロード中...")
-    public_urls = []
-    ts = int(time.time())
-    for i, p in enumerate(image_paths, 1):
-        ascii_name = f"ig_{args.theme.encode('ascii', 'replace').decode()}_{ts}_{i:02d}.jpg"
-        ascii_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in ascii_name)
-        url = upload_to_wordpress(p, env, ascii_name)
-        public_urls.append(url)
-        print(f"  {i}/10: {p.name} -> {url}")
+    # image_urls.json に事前アップロード済みURLがあればそれを使う
+    url_cache = {}
+    if URL_JSON.exists():
+        url_cache = json.loads(URL_JSON.read_text(encoding="utf-8"))
+
+    if args.theme in url_cache and len(url_cache[args.theme]) == 10:
+        print("\n[1/3] 事前アップロード済みURLを使用")
+        public_urls = url_cache[args.theme]
+        for i, u in enumerate(public_urls, 1):
+            print(f"  {i}/10: {u}")
+    else:
+        print("\n[1/3] WordPressに画像をアップロード中...")
+        public_urls = []
+        ts = int(time.time())
+        for i, p in enumerate(image_paths, 1):
+            ascii_name = f"ig_{ts}_{i:02d}.jpg"
+            url = upload_to_wordpress(p, env, ascii_name)
+            public_urls.append(url)
+            print(f"  {i}/10: {p.name} -> {url}")
 
     print("\n[2/3] Instagram子アイテム作成中...")
     children_ids = []
