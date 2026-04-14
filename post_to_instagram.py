@@ -19,18 +19,19 @@ ENV_PATH = Path(__file__).parent / ".env"
 
 
 def load_env(path: Path) -> dict:
-    env = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" in line:
-            k, v = line.split("=", 1)
-            env[k.strip()] = v.strip()
     required = ["IG_USER_ID", "IG_ACCESS_TOKEN", "WP_URL", "WP_USER", "WP_APP_PASSWORD"]
+    env = {k: os.environ[k] for k in required if k in os.environ}
+    if not all(k in env for k in required) and path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            env.setdefault(k.strip(), v.strip())
+    env.setdefault("WP_URL", "https://sekai-kotoba.com")
     missing = [k for k in required if not env.get(k)]
     if missing:
-        sys.exit(f"Error: .env に次のキーが未設定です: {missing}")
+        sys.exit(f"Error: 環境変数または .env に次のキーが未設定です: {missing}")
     return env
 
 
