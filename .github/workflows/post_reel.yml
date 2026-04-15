@@ -1,0 +1,37 @@
+name: Instagram Reel Auto Post
+
+on:
+  schedule:
+    # 毎週月曜 JST 20:00 = UTC 11:00
+    - cron: "0 11 * * 1"
+  workflow_dispatch:
+
+jobs:
+  post_reel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run post_reel_next.py
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: python3 post_reel_next.py
+
+      - name: Commit reel_posted.log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reel_posted.log
+          git diff --staged --quiet || git commit -m "log: reel posted $(date +%Y-%m-%d_%H:%M)"
+          git push
