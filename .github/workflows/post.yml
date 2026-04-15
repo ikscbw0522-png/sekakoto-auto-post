@@ -33,10 +33,10 @@ jobs:
           WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
         run: python3 post_next.py
 
-      - name: Commit posted.log
+      - name: Commit logs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add posted.log
+          git add posted.log ig_embed_map.json
           git diff --staged --quiet || git commit -m "log: posted theme $(date +%Y-%m-%d_%H:%M)"
           git push

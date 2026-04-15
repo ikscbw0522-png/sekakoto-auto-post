@@ -76,6 +76,10 @@ def main():
     log_posted(theme, media_id)
     print(f"記録完了: {theme} ({media_id})")
 
+    if media_id != "unknown":
+        from update_ig_embed_map import update
+        update(theme, media_id)
+
 
 if __name__ == "__main__":
     main()

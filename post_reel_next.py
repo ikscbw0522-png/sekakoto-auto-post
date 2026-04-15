@@ -59,6 +59,10 @@ def main():
         f.write(f"{now} {theme} ({media_id})\n")
     print(f"記録: {theme} ({media_id})")
 
+    if media_id != "unknown":
+        from update_ig_embed_map import update
+        update(theme, media_id)
+
 
 if __name__ == "__main__":
     main()

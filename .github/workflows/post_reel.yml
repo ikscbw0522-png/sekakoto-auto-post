@@ -28,10 +28,10 @@ jobs:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         run: python3 post_reel_next.py
 
-      - name: Commit reel_posted.log
+      - name: Commit logs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add reel_posted.log
+          git add reel_posted.log ig_embed_map.json
           git diff --staged --quiet || git commit -m "log: reel posted $(date +%Y-%m-%d_%H:%M)"
           git push
