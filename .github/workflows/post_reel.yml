@@ -2,8 +2,8 @@ name: Instagram Reel Auto Post
 
 on:
   schedule:
-    # 毎週月曜 JST 20:00 = UTC 11:00
-    - cron: "0 11 * * 1"
+    # 月水金 JST 20:00 = UTC 11:00
+    - cron: "0 11 * * 1,3,5"
   workflow_dispatch:
 
 jobs:
