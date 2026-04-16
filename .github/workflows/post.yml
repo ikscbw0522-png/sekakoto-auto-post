@@ -1,4 +1,4 @@
-name: Instagram Auto Post
+name: Instagram Auto Post (Voice Reel)
 
 on:
   schedule:
@@ -24,19 +24,16 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run post_next.py
+      - name: Run post_reel_next.py --voice
         env:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-          WP_URL: https://sekai-kotoba.com
-          WP_USER: ${{ secrets.WP_USER }}
-          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
-        run: python3 post_next.py
+        run: python3 post_reel_next.py --voice
 
       - name: Commit logs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add posted.log ig_embed_map.json
-          git diff --staged --quiet || git commit -m "log: posted theme $(date +%Y-%m-%d_%H:%M)"
+          git add reel_posted.log ig_embed_map.json
+          git diff --staged --quiet || git commit -m "log: voice reel posted $(date +%Y-%m-%d_%H:%M)"
           git push

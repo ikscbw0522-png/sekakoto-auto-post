@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""全リールMP4をWPに一括アップロードし、URL一覧をreel_urls.jsonに保存。"""
+"""全リールMP4をWPに一括アップロードし、URL一覧をJSONに保存。
+
+通常Reel: python3 bulk_upload_reels.py
+音声Reel: python3 bulk_upload_reels.py --src voice_reels --out voice_reel_urls.json
+"""
+import argparse
 import base64
 import json
 import sys
@@ -9,8 +14,6 @@ from pathlib import Path
 import requests
 
 BASE = Path(__file__).parent
-REELS_DIR = BASE / "reels"
-URL_JSON = BASE / "reel_urls.json"
 ENV_PATH = BASE / ".env"
 
 
@@ -40,13 +43,27 @@ def upload(path: Path, ascii_name: str, env: dict) -> str:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--src", default="reels",
+                        help="MP4ソースディレクトリ（reels or voice_reels）")
+    parser.add_argument("--out", default="reel_urls.json",
+                        help="URL保存先JSON")
+    parser.add_argument("--prefix", default="reel",
+                        help="アップロード時ファイル名プレフィックス")
+    args = parser.parse_args()
+
+    reels_dir = BASE / args.src
+    url_json = BASE / args.out
+    if not reels_dir.is_dir():
+        sys.exit(f"ディレクトリなし: {reels_dir}")
+
     env = load_env()
     data = {}
-    if URL_JSON.exists():
-        data = json.loads(URL_JSON.read_text(encoding="utf-8"))
-        print(f"既存: {len(data)} テーマ")
+    if url_json.exists():
+        data = json.loads(url_json.read_text(encoding="utf-8"))
+        print(f"既存: {len(data)} テーマ ({url_json.name})")
 
-    mp4s = sorted(REELS_DIR.glob("*.mp4"))
+    mp4s = sorted(reels_dir.glob("*.mp4"))
     total = len(mp4s)
     ts = int(time.time())
 
@@ -55,10 +72,10 @@ def main():
         if theme in data:
             continue
         try:
-            ascii_name = f"reel_{ts}_{idx:03d}.mp4"
+            ascii_name = f"{args.prefix}_{ts}_{idx:03d}.mp4"
             url = upload(path, ascii_name, env)
             data[theme] = url
-            URL_JSON.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            url_json.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
             print(f"[{idx}/{total}] ✅ {theme}")
         except Exception as e:
             print(f"[{idx}/{total}] ❌ {theme}: {e}", file=sys.stderr)

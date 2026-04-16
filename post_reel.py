@@ -16,6 +16,7 @@ import requests
 
 BASE = Path(__file__).parent
 REEL_URLS = BASE / "reel_urls.json"
+VOICE_REEL_URLS = BASE / "voice_reel_urls.json"
 CAPTIONS_DIR = BASE / "captions"
 ENV_PATH = BASE / ".env"
 
@@ -50,10 +51,16 @@ def create_reel_container(video_url: str, caption: str, env: dict) -> str:
 
 
 def wait_for_processing(container_id: str, env: dict, timeout: int = 300) -> bool:
-    """動画のアップロード・エンコード完了を待つ。"""
+    """動画のアップロード・エンコード完了を待つ。
+
+    ERROR 状態が返ることがあるが一時的な場合があるため、連続で複数回 ERROR を
+    観測した場合のみ失敗と判定する（タイムアウトするまではリトライ）。
+    """
     url = f"https://graph.instagram.com/v21.0/{container_id}"
     params = {"fields": "status_code", "access_token": env["IG_ACCESS_TOKEN"]}
     start = time.time()
+    error_streak = 0
+    ERROR_THRESHOLD = 5  # 連続5回 ERROR なら本物のエラーと判定
     while time.time() - start < timeout:
         r = requests.get(url, params=params, timeout=30)
         if r.status_code == 200:
@@ -62,8 +69,12 @@ def wait_for_processing(container_id: str, env: dict, timeout: int = 300) -> boo
             if status == "FINISHED":
                 return True
             if status == "ERROR":
-                print(f"  詳細: {r.text}")
-                return False
+                error_streak += 1
+                if error_streak >= ERROR_THRESHOLD:
+                    print(f"  連続{ERROR_THRESHOLD}回ERROR → 失敗確定: {r.text}")
+                    return False
+            else:
+                error_streak = 0
         time.sleep(5)
     return False
 
@@ -81,16 +92,19 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--theme", required=True)
     parser.add_argument("--caption", help="キャプションtxt（省略時は captions/<theme>.txt）")
+    parser.add_argument("--voice", action="store_true",
+                        help="音声版を投稿（voice_reel_urls.json 参照）")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     env = load_env()
 
-    if not REEL_URLS.exists():
-        sys.exit("reel_urls.json がありません。bulk_upload_reels.py を先に実行してください。")
-    urls = json.loads(REEL_URLS.read_text(encoding="utf-8"))
+    url_file = VOICE_REEL_URLS if args.voice else REEL_URLS
+    if not url_file.exists():
+        sys.exit(f"{url_file.name} がありません。bulk_upload_reels.py を先に実行してください。")
+    urls = json.loads(url_file.read_text(encoding="utf-8"))
     if args.theme not in urls:
-        sys.exit(f"reel_urls.json に {args.theme} のURLなし")
+        sys.exit(f"{url_file.name} に {args.theme} のURLなし")
     video_url = urls[args.theme]
 
     caption_path = Path(args.caption) if args.caption else (CAPTIONS_DIR / f"{args.theme}.txt")

@@ -2,7 +2,11 @@
 """post_order.txt の未投稿テーマから1つ選んでReel投稿。
 
 reel_posted.log に記録。post_next.py の Reel 版。
+
+--voice: voice_reel_urls.json を参照して音声版Reelを投稿。
+         voice版にテーマが無ければ通常版にフォールバック。
 """
+import argparse
 import datetime
 import subprocess
 import sys
@@ -12,6 +16,7 @@ BASE = Path(__file__).parent
 ORDER_FILE = BASE / "post_order.txt"
 REEL_LOG = BASE / "reel_posted.log"
 REEL_URLS = BASE / "reel_urls.json"
+VOICE_REEL_URLS = BASE / "voice_reel_urls.json"
 
 
 def load_posted():
@@ -27,24 +32,40 @@ def load_posted():
 
 def main():
     import json
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--voice", action="store_true",
+                        help="音声版Reelを優先投稿")
+    args = parser.parse_args()
+
+    voice_urls = {}
+    if args.voice and VOICE_REEL_URLS.exists():
+        voice_urls = json.loads(VOICE_REEL_URLS.read_text(encoding="utf-8"))
     urls = json.loads(REEL_URLS.read_text(encoding="utf-8"))
     order = [t.strip() for t in ORDER_FILE.read_text(encoding="utf-8").splitlines() if t.strip()]
     posted = load_posted()
 
     theme = None
+    use_voice = False
     for t in order:
-        if t not in posted and t in urls:
+        if t in posted:
+            continue
+        if args.voice and t in voice_urls:
+            theme = t
+            use_voice = True
+            break
+        if t in urls:
             theme = t
             break
     if not theme:
         print("全Reel投稿済み")
         sys.exit(0)
 
-    print(f"次のReel: {theme}")
-    r = subprocess.run(
-        ["python3", str(BASE / "post_reel.py"), "--theme", theme],
-        capture_output=True, text=True,
-    )
+    print(f"次のReel: {theme} ({'音声版' if use_voice else '通常版'})")
+    cmd = ["python3", str(BASE / "post_reel.py"), "--theme", theme]
+    if use_voice:
+        cmd.append("--voice")
+    r = subprocess.run(cmd, capture_output=True, text=True)
     print(r.stdout)
     if r.returncode != 0:
         print(r.stderr, file=sys.stderr)

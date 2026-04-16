@@ -13,5 +13,11 @@ logo*.jpg
 __pycache__/
 *.pyc
 
+# 動画素材（WPにアップロードしURLで参照するためGitには含めない）
+reels/
+voice_reels/
+*_bulk.log
+voice_upload.log
+
 # スクショ
 スクリーンショット*.png
