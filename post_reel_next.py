@@ -5,6 +5,8 @@ reel_posted.log に記録。post_next.py の Reel 版。
 
 --voice: voice_reel_urls.json を参照して音声版Reelを投稿。
          voice版にテーマが無ければ通常版にフォールバック。
+--convo: convo_reel_urls.json を参照して会話アニメ版Reelを投稿。
+         convo版にテーマが無ければ通常版にフォールバック。
 """
 import argparse
 import datetime
@@ -17,6 +19,7 @@ ORDER_FILE = BASE / "post_order.txt"
 REEL_LOG = BASE / "reel_posted.log"
 REEL_URLS = BASE / "reel_urls.json"
 VOICE_REEL_URLS = BASE / "voice_reel_urls.json"
+CONVO_REEL_URLS = BASE / "convo_reel_urls.json"
 
 
 def load_posted():
@@ -36,20 +39,30 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--voice", action="store_true",
                         help="音声版Reelを優先投稿")
+    parser.add_argument("--convo", action="store_true",
+                        help="会話アニメ版Reelを優先投稿")
     args = parser.parse_args()
 
     voice_urls = {}
+    convo_urls = {}
     if args.voice and VOICE_REEL_URLS.exists():
         voice_urls = json.loads(VOICE_REEL_URLS.read_text(encoding="utf-8"))
+    if args.convo and CONVO_REEL_URLS.exists():
+        convo_urls = json.loads(CONVO_REEL_URLS.read_text(encoding="utf-8"))
     urls = json.loads(REEL_URLS.read_text(encoding="utf-8"))
     order = [t.strip() for t in ORDER_FILE.read_text(encoding="utf-8").splitlines() if t.strip()]
     posted = load_posted()
 
     theme = None
     use_voice = False
+    use_convo = False
     for t in order:
         if t in posted:
             continue
+        if args.convo and t in convo_urls:
+            theme = t
+            use_convo = True
+            break
         if args.voice and t in voice_urls:
             theme = t
             use_voice = True
@@ -61,9 +74,12 @@ def main():
         print("全Reel投稿済み")
         sys.exit(0)
 
-    print(f"次のReel: {theme} ({'音声版' if use_voice else '通常版'})")
+    label = '会話アニメ版' if use_convo else ('音声版' if use_voice else '通常版')
+    print(f"次のReel: {theme} ({label})")
     cmd = ["python3", str(BASE / "post_reel.py"), "--theme", theme]
-    if use_voice:
+    if use_convo:
+        cmd.append("--convo")
+    elif use_voice:
         cmd.append("--voice")
     r = subprocess.run(cmd, capture_output=True, text=True)
     print(r.stdout)

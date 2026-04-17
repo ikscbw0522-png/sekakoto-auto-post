@@ -17,6 +17,7 @@ import requests
 BASE = Path(__file__).parent
 REEL_URLS = BASE / "reel_urls.json"
 VOICE_REEL_URLS = BASE / "voice_reel_urls.json"
+CONVO_REEL_URLS = BASE / "convo_reel_urls.json"
 CAPTIONS_DIR = BASE / "captions"
 ENV_PATH = BASE / ".env"
 
@@ -94,12 +95,19 @@ def main():
     parser.add_argument("--caption", help="キャプションtxt（省略時は captions/<theme>.txt）")
     parser.add_argument("--voice", action="store_true",
                         help="音声版を投稿（voice_reel_urls.json 参照）")
+    parser.add_argument("--convo", action="store_true",
+                        help="会話アニメ版を投稿（convo_reel_urls.json 参照）")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     env = load_env()
 
-    url_file = VOICE_REEL_URLS if args.voice else REEL_URLS
+    if args.convo:
+        url_file = CONVO_REEL_URLS
+    elif args.voice:
+        url_file = VOICE_REEL_URLS
+    else:
+        url_file = REEL_URLS
     if not url_file.exists():
         sys.exit(f"{url_file.name} がありません。bulk_upload_reels.py を先に実行してください。")
     urls = json.loads(url_file.read_text(encoding="utf-8"))

@@ -1,12 +1,17 @@
-name: Instagram Auto Post (Voice Reel)
+name: Instagram Auto Post (Voice + Convo Reel)
 
 on:
   schedule:
-    # JSTの朝7:00 = UTC前日22:00
+    # JSTの朝7:00 = UTC前日22:00 → 音声Reel
     - cron: "0 22 * * *"
-    # JSTの夜21:00 = UTC同日12:00
+    # JSTの夜21:00 = UTC同日12:00 → 会話アニメReel
     - cron: "0 12 * * *"
   workflow_dispatch:  # 手動実行用
+    inputs:
+      type:
+        description: "Reel type: voice or convo"
+        required: false
+        default: "voice"
 
 jobs:
   post:
@@ -24,16 +29,27 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run post_reel_next.py --voice
+      - name: Determine reel type
+        id: reel_type
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "flag=--${{ github.event.inputs.type }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
+            echo "flag=--voice" >> $GITHUB_OUTPUT
+          else
+            echo "flag=--convo" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run post_reel_next.py
         env:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-        run: python3 post_reel_next.py --voice
+        run: python3 post_reel_next.py ${{ steps.reel_type.outputs.flag }}
 
       - name: Commit logs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add reel_posted.log ig_embed_map.json
-          git diff --staged --quiet || git commit -m "log: voice reel posted $(date +%Y-%m-%d_%H:%M)"
+          git diff --staged --quiet || git commit -m "log: reel posted $(date +%Y-%m-%d_%H:%M)"
           git push
