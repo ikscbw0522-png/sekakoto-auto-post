@@ -29,8 +29,10 @@ def reencode_for_ig(src: Path, dst: Path) -> None:
     cmd = [
         ff, "-y", "-i", str(src),
         "-c:v", "libx264", "-profile:v", "high", "-level", "4.0",
-        "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "20",
+        "-pix_fmt", "yuv420p", "-preset", "medium",
+        "-b:v", "2500k", "-minrate", "1500k", "-maxrate", "4000k", "-bufsize", "6000k",
         "-r", "30", "-g", "60", "-keyint_min", "60",
+        "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
         "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
         "-movflags", "+faststart",
         str(dst),
