@@ -194,14 +194,26 @@ def fit_text(draw, text, max_w, max_h, font_path, initial=80, wrap_width=30):
     return font, textwrap.wrap(text, width=30) or [text], 24
 
 
-def draw_hook(phrase: str, path: Path):
+CONVO_HOOK_PATTERNS = [
+    {"top": "現地でこれ言えたら神", "bottom": "例文ごと覚えよう"},
+    {"top": "この例文、旅行で実際に使えます", "bottom": "8言語リアル会話"},
+    {"top": "聞き取れたらネイティブ級", "bottom": "チャレンジしてみて"},
+    {"top": "知ってるだけで旅が変わる", "bottom": "8言語の実例つき"},
+]
+
+
+def draw_hook(phrase: str, path: Path, pattern_idx: int = 0):
+    pat = CONVO_HOOK_PATTERNS[pattern_idx % len(CONVO_HOOK_PATTERNS)]
     img = Image.new("RGB", (REEL_W, REEL_H), (55, 45, 40))
     d = ImageDraw.Draw(img)
-    f1 = ImageFont.truetype(FONT_TOPPAN, 78)
-    q = "例文で覚える"
-    bbox = d.textbbox((0, 0), q, font=f1)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 420), q, font=f1, fill=(220, 210, 195))
 
+    # 上部テキスト（感情フック）
+    f1 = ImageFont.truetype(FONT_TOPPAN, 76)
+    q = pat["top"]
+    bbox = d.textbbox((0, 0), q, font=f1)
+    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 380), q, font=f1, fill=(220, 210, 195))
+
+    # フレーズ（大きく目立つ）
     for sz in range(220, 80, -10):
         f2 = ImageFont.truetype(FONT_TOPPAN, sz)
         bbox = d.textbbox((0, 0), f"「{phrase}」", font=f2)
@@ -209,17 +221,15 @@ def draw_hook(phrase: str, path: Path):
             break
     pt = f"「{phrase}」"
     bbox = d.textbbox((0, 0), pt, font=f2)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 560), pt, font=f2, fill=(255, 253, 248))
+    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 530), pt, font=f2, fill=(255, 253, 248))
 
+    # 下部テキスト（行動促進）
     f3 = ImageFont.truetype(FONT_TOPPAN, 76)
-    k = "8言語のリアル会話 ♪"
+    k = pat["bottom"]
     bbox = d.textbbox((0, 0), k, font=f3)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 860), k, font=f3, fill=ACCENT)
+    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 830), k, font=f3, fill=ACCENT)
 
-    d.rectangle([(REEL_W/2-150, 1000), (REEL_W/2+150, 1008)], fill=ACCENT)
-
-    f4 = ImageFont.truetype(FONT_TSUKUSHI, 58)
-    d.text(((REEL_W - d.textbbox((0,0),"スワイプで正解↓",font=f4)[2]) / 2, 1080), "スワイプで正解↓", font=f4, fill=(220, 210, 195))
+    d.rectangle([(REEL_W/2-150, 980), (REEL_W/2+150, 988)], fill=ACCENT)
 
     f5 = ImageFont.truetype(FONT_TOPPAN, 48)
     d.text(((REEL_W - d.textbbox((0,0),"@sekakoto_dict",font=f5)[2]) / 2, REEL_H - 160), "@sekakoto_dict", font=f5, fill=(220, 210, 195))
@@ -419,7 +429,8 @@ def generate(theme: str) -> Path:
         tmp_dir = Path(tmp)
 
         hook = tmp_dir / "hook.jpg"
-        draw_hook(phrase, hook)
+        pattern_idx = hash(theme) % len(CONVO_HOOK_PATTERNS)
+        draw_hook(phrase, hook, pattern_idx=pattern_idx)
 
         total = len(sections)
         video_clips = [ImageClip(str(hook)).with_duration(HOOK_DURATION)]

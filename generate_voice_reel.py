@@ -80,13 +80,26 @@ def gen_tts(text: str, lang_code: str, out_path: Path):
     gTTS(text=text, lang=lang_code).save(str(out_path))
 
 
-def draw_hook(phrase: str, path: Path):
+HOOK_PATTERNS = [
+    {"top": "旅先でこれ言えなかったら…", "bottom": "8言語ネイティブ発音"},
+    {"top": "これ、8言語で言える？", "bottom": "全部聞いてみて"},
+    {"top": "1つだけ発音が超意外", "bottom": "どの言語かわかる？"},
+    {"top": "海外で一番使うフレーズ", "bottom": "8言語マスターしよう"},
+]
+
+
+def draw_hook(phrase: str, path: Path, pattern_idx: int = 0):
+    pat = HOOK_PATTERNS[pattern_idx % len(HOOK_PATTERNS)]
     img = Image.new("RGB", (REEL_W, REEL_H), (55, 45, 40))
     d = ImageDraw.Draw(img)
-    f1 = ImageFont.truetype(FONT_TOPPAN, 82)
-    q = "このフレーズ…"
+
+    # 上部テキスト（感情フック）
+    f1 = ImageFont.truetype(FONT_TOPPAN, 78)
+    q = pat["top"]
     bbox = d.textbbox((0, 0), q, font=f1)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 380), q, font=f1, fill=(220, 210, 195))
+    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 360), q, font=f1, fill=(220, 210, 195))
+
+    # フレーズ（大きく目立つ）
     for sz in range(220, 80, -10):
         f2 = ImageFont.truetype(FONT_TOPPAN, sz)
         bbox = d.textbbox((0, 0), f"「{phrase}」", font=f2)
@@ -94,14 +107,16 @@ def draw_hook(phrase: str, path: Path):
             break
     pt = f"「{phrase}」"
     bbox = d.textbbox((0, 0), pt, font=f2)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 540), pt, font=f2, fill=(255, 253, 248))
-    f3 = ImageFont.truetype(FONT_TOPPAN, 82)
-    k = "8言語の発音を聞いてみよう"
+    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 530), pt, font=f2, fill=(255, 253, 248))
+
+    # 下部テキスト（行動促進）
+    f3 = ImageFont.truetype(FONT_TOPPAN, 78)
+    k = pat["bottom"]
     bbox = d.textbbox((0, 0), k, font=f3)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 820), k, font=f3, fill=ACCENT)
-    d.rectangle([(REEL_W/2-150, 970), (REEL_W/2+150, 978)], fill=ACCENT)
-    f4 = ImageFont.truetype(FONT_TSUKUSHI, 60)
-    d.text((REEL_W/2 - 180, 1050), "🎧 音声付き", font=f4, fill=(220, 210, 195))
+    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 810), k, font=f3, fill=ACCENT)
+
+    d.rectangle([(REEL_W/2-150, 960), (REEL_W/2+150, 968)], fill=ACCENT)
+
     f5 = ImageFont.truetype(FONT_TOPPAN, 48)
     d.text(((REEL_W - d.textbbox((0,0),"@sekakoto_dict",font=f5)[2]) / 2, REEL_H - 160), "@sekakoto_dict", font=f5, fill=(220, 210, 195))
     img.save(path, "JPEG", quality=92)
@@ -222,7 +237,9 @@ def generate(theme: str) -> Path:
 
         # Hook
         hook_img = tmp_dir / "hook.jpg"
-        draw_hook(phrase, hook_img)
+        # テーマ名のハッシュでフックパターンをローテーション
+        pattern_idx = hash(theme) % len(HOOK_PATTERNS)
+        draw_hook(phrase, hook_img, pattern_idx=pattern_idx)
 
         # 各言語スライド + 音声
         total = len(sections)
