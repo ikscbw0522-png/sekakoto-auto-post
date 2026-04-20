@@ -1,12 +1,12 @@
 name: Instagram Auto Post (Hyperframes Reel)
 
-# A/Bテスト用：毎日13:00 JSTにHyperframes版Reelを投稿（post.ymlの07:00 voice / 21:00 convoと並走）
+# A/Bテスト用：毎日08:00 JSTにHyperframes版Reelを投稿（07:00 voiceの1時間後）
 # 事前レンダ済テーマの在庫が尽きたら自動停止（publish_hf_next.py が exit 0 する）
 
 on:
   schedule:
-    # JSTの13:00 = UTC 04:00
-    - cron: "0 4 * * *"
+    # JSTの08:00 = UTC 23:00（前日）
+    - cron: "0 23 * * *"
   workflow_dispatch:  # 手動実行
 
 jobs:
