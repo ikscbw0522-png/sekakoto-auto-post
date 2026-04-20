@@ -16,8 +16,23 @@ __pycache__/
 # 動画素材（WPにアップロードしURLで参照するためGitには含めない）
 reels/
 voice_reels/
+convo_reels/
+avatars/
 *_bulk.log
 voice_upload.log
+convo_upload.log
+
+# Hyperframes 作業ディレクトリ（MP4/TTS音声/画像はWPにあるのでGit不要）
+sekai_kotoba_hf/output/
+sekai_kotoba_hf/tmp/
+sekai_kotoba_hf/assets/
+sekai_kotoba_hf/ohayou_*.mp4
+sekai_kotoba_hf/frame*.jpg
+sekai_kotoba_hf/gen_tts.py
+
+# 試行・断念したもの
+tha3/
+wav2lip/
 
 # スクショ
 スクリーンショット*.png

@@ -20,6 +20,10 @@ import requests
 
 BASE = Path(__file__).parent
 ENV_PATH = BASE / ".env"
+REEL_LOG = BASE / "reel_posted.log"
+
+# フォーマット識別タグ（reel_posted.log の末尾 []）
+FORMAT_TAGS = ["hyperframes", "voice", "convo"]
 
 
 def load_env():
@@ -80,6 +84,41 @@ def extract_theme(caption):
     return m.group(1) if m else caption[:20].replace("\n", " ")
 
 
+def load_format_map():
+    """reel_posted.log から media_id → format (hyperframes/voice/convo/normal) のマップを構築。"""
+    import re
+    mapping = {}
+    if not REEL_LOG.exists():
+        return mapping
+    # 例: 2026-04-20 13:55 おはよう (18086233694525406) [hyperframes]
+    pat = re.compile(r"\((\d+)\)(?:\s+\[([^\]]+)\])?")
+    for line in REEL_LOG.read_text(encoding="utf-8").splitlines():
+        m = pat.search(line)
+        if m:
+            mid = m.group(1)
+            tag = m.group(2) if m.group(2) in FORMAT_TAGS else "normal"
+            mapping[mid] = tag
+    return mapping
+
+
+def by_format_stats(posts_with_insights):
+    """フォーマット別に集計した統計を返す。"""
+    from collections import defaultdict
+    stats = defaultdict(lambda: {"count": 0, "reach": 0, "saved": 0, "shares": 0,
+                                  "interactions": 0, "themes": []})
+    for p in posts_with_insights:
+        fmt = p.get("format", "unknown")
+        ins = p["insights"]
+        theme = extract_theme(p.get("caption", ""))
+        stats[fmt]["count"] += 1
+        stats[fmt]["reach"] += ins.get("reach", 0)
+        stats[fmt]["saved"] += ins.get("saved", 0)
+        stats[fmt]["shares"] += ins.get("shares", 0)
+        stats[fmt]["interactions"] += ins.get("total_interactions", 0)
+        stats[fmt]["themes"].append((theme, ins.get("reach", 0), ins.get("saved", 0)))
+    return dict(stats)
+
+
 def generate_report(posts_with_insights):
     """分析レポートを生成。"""
     lines = []
@@ -87,6 +126,35 @@ def generate_report(posts_with_insights):
     lines.append(f"📊 Instagram Insights レポート ({now})")
     lines.append(f"{'='*40}")
     lines.append(f"総投稿数: {len(posts_with_insights)}")
+
+    # === フォーマット別サマリー ===
+    fmt_stats = by_format_stats(posts_with_insights)
+    if fmt_stats:
+        lines.append("")
+        lines.append("🎬 フォーマット別サマリー:")
+        # 順番: hyperframes > voice > convo > normal > unknown
+        order = ["hyperframes", "voice", "convo", "normal", "unknown"]
+        for fmt in order:
+            if fmt not in fmt_stats:
+                continue
+            s = fmt_stats[fmt]
+            avg_reach = s["reach"] / s["count"] if s["count"] else 0
+            save_rate = s["saved"] / max(1, s["reach"]) * 100
+            lines.append(f"  [{fmt:11s}] n={s['count']:2d} / reach合計={s['reach']:4d} / "
+                         f"平均reach={avg_reach:5.1f} / 保存={s['saved']} ({save_rate:.1f}%) / "
+                         f"シェア={s['shares']}")
+        # 各フォーマットの代表投稿（reach TOP2）
+        lines.append("")
+        lines.append("🏁 フォーマット別 reach TOP2:")
+        for fmt in order:
+            if fmt not in fmt_stats:
+                continue
+            themes = sorted(fmt_stats[fmt]["themes"], key=lambda t: t[1], reverse=True)[:2]
+            if not themes:
+                continue
+            lines.append(f"  [{fmt}]")
+            for theme, reach, saved in themes:
+                lines.append(f"      「{theme}」 reach={reach} saved={saved}")
 
     total_reach = sum(p["insights"].get("reach", 0) for p in posts_with_insights)
     total_saved = sum(p["insights"].get("saved", 0) for p in posts_with_insights)
@@ -156,10 +224,100 @@ def send_discord(webhook_url, message):
         time.sleep(0.5)
 
 
+def compare_hyperframes_report(posts_with_insights):
+    """Hyperframes vs voice/convo/normal の詳細比較レポート（投稿24h経過分のみ）。"""
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=24)
+
+    # 24h以上経過した投稿だけを対象に
+    import re as _re
+    mature = []
+    for p in posts_with_insights:
+        ts = p.get("timestamp", "")
+        if not ts:
+            continue
+        # IGは "2026-04-15T14:58:12+0000" 形式を返す。Python 3.9 fromisoformat は +00:00 が必要
+        ts_norm = _re.sub(r"([+-])(\d{2})(\d{2})$", r"\1\2:\3", ts.replace("Z", "+00:00"))
+        try:
+            post_dt = datetime.fromisoformat(ts_norm)
+            if post_dt < cutoff:
+                mature.append(p)
+        except ValueError:
+            continue
+
+    lines = []
+    lines.append("")
+    lines.append("=" * 50)
+    lines.append("🏁 Hyperframes A/B比較レポート（投稿24h経過分のみ）")
+    lines.append("=" * 50)
+    lines.append(f"対象期間: 24h以上前の投稿のみ（n={len(mature)}）")
+
+    fmt_stats = by_format_stats(mature)
+    if not fmt_stats:
+        lines.append("⚠️ 比較対象データなし")
+        return "\n".join(lines)
+
+    # 各フォーマットの平均
+    lines.append("")
+    lines.append(f"{'フォーマット':15s} {'n':>3} {'平均reach':>12} {'平均保存':>10} {'保存率':>8} {'平均シェア':>10}")
+    lines.append("-" * 70)
+    fmt_avg = {}
+    for fmt in ["hyperframes", "voice", "convo", "normal"]:
+        if fmt not in fmt_stats:
+            continue
+        s = fmt_stats[fmt]
+        n = s["count"]
+        avg_reach = s["reach"] / n if n else 0
+        avg_saved = s["saved"] / n if n else 0
+        save_rate = s["saved"] / max(1, s["reach"]) * 100
+        avg_shares = s["shares"] / n if n else 0
+        fmt_avg[fmt] = {"n": n, "reach": avg_reach, "saved": avg_saved, "save_rate": save_rate, "shares": avg_shares}
+        lines.append(f"{fmt:15s} {n:>3} {avg_reach:>12.1f} {avg_saved:>10.2f} {save_rate:>7.2f}% {avg_shares:>10.2f}")
+
+    # 判定
+    lines.append("")
+    lines.append("【判定】")
+    if "hyperframes" not in fmt_avg:
+        lines.append("⚠️ Hyperframesデータなし（24h以上経過の投稿が0本）")
+    else:
+        hf = fmt_avg["hyperframes"]
+        # 比較対象として voice/convo/normal のうち最大の平均reach
+        baseline_names = [k for k in ["voice", "convo", "normal"] if k in fmt_avg]
+        if not baseline_names:
+            lines.append("⚠️ 比較対象（voice/convo/normal）データなし")
+        else:
+            best_baseline = max(baseline_names, key=lambda k: fmt_avg[k]["reach"])
+            bl = fmt_avg[best_baseline]
+            reach_ratio = hf["reach"] / max(1, bl["reach"])
+            lines.append(f"  Hyperframes平均reach: {hf['reach']:.1f} (n={hf['n']})")
+            lines.append(f"  比較基準 [{best_baseline}] 平均reach: {bl['reach']:.1f} (n={bl['n']})")
+            lines.append(f"  比率: {reach_ratio:.2f}x")
+            if hf["n"] < 3:
+                lines.append("  ⚠️ サンプル少なすぎ（Hyperframes n<3）— 判断保留推奨")
+            elif reach_ratio >= 1.0:
+                lines.append(f"  ✅ Hyperframes優勢 → P4（195本一括）推奨")
+            elif reach_ratio >= 0.8:
+                lines.append(f"  🟡 ほぼ同等 → 保存率・シェアも確認、差があれば採用")
+            else:
+                lines.append(f"  ❌ Hyperframes劣勢 → フック/CTA再調整 or ロールバック検討")
+
+            # 保存率も比較
+            if hf["save_rate"] > 0 and bl["save_rate"] > 0:
+                save_ratio = hf["save_rate"] / bl["save_rate"]
+                lines.append(f"  保存率比: {save_ratio:.2f}x (Hyperframes {hf['save_rate']:.1f}% vs {bl['save_rate']:.1f}%)")
+            elif hf["save_rate"] > 0:
+                lines.append(f"  Hyperframesのみ保存発生: {hf['save_rate']:.1f}%")
+
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--discord", help="Discord Webhook URL")
     parser.add_argument("--json", action="store_true", help="JSON形式で出力")
+    parser.add_argument("--compare-hyperframes", action="store_true",
+                        help="Hyperframes vs voice/convo の詳細比較レポートを追加出力")
     args = parser.parse_args()
 
     env = load_env()
@@ -168,10 +326,12 @@ def main():
     print(f"  {len(posts)}件取得")
 
     print("Insights取得中...")
+    fmt_map = load_format_map()  # media_id → hyperframes/voice/convo/normal
     posts_with_insights = []
     for i, p in enumerate(posts, 1):
         ins = get_insights(p["id"], env)
         p["insights"] = ins
+        p["format"] = fmt_map.get(p["id"], "unknown")
         posts_with_insights.append(p)
         if i % 10 == 0:
             print(f"  {i}/{len(posts)}")
@@ -183,6 +343,12 @@ def main():
 
     report = generate_report(posts_with_insights)
     print("\n" + report)
+
+    # Hyperframes比較レポート（--compare-hyperframes指定時）
+    if args.compare_hyperframes:
+        compare = compare_hyperframes_report(posts_with_insights)
+        print(compare)
+        report = report + "\n" + compare
 
     # レポートをファイルに保存
     report_path = BASE / "insights_report.txt"

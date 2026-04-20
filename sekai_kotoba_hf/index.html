@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Noto+Sans+SC:wght@400;700;900&family=Noto+Sans+KR:wght@400;700;900&family=Noto+Sans+Thai:wght@400;700;900&family=Noto+Sans+Devanagari:wght@400;700;900&family=Noto+Sans+Arabic:wght@400;700;900&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        font-family: "Inter", "Noto Sans JP", sans-serif;
+      }
+      #root { position: relative; width: 100%; height: 100%; }
+      .clip { position: absolute; width: 100%; }
+      .scene {
+        top: 0; left: 0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        text-align: center;
+        padding: 220px 80px 80px;
+      }
+      .counter {
+        position: absolute;
+        top: 120px;
+        left: 0;
+        width: 100%;
+        text-align: center;
+        font-size: 42px;
+        font-weight: 700;
+        color: #60a5fa;
+        letter-spacing: 6px;
+      }
+      .avatar-wrap {
+        position: relative;
+        width: 420px;
+        height: 420px;
+        margin-bottom: 40px;
+      }
+      .avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 8px solid #fbbf24;
+        box-shadow: 0 0 50px rgba(251, 191, 36, 0.5);
+      }
+      .flag-badge {
+        position: absolute;
+        bottom: -10px;
+        right: -10px;
+        font-size: 100px;
+        background: #0f172a;
+        border-radius: 50%;
+        width: 140px;
+        height: 140px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        border: 6px solid #1e293b;
+      }
+      .label {
+        font-size: 44px;
+        font-weight: 700;
+        color: #94a3b8;
+        letter-spacing: 6px;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+      }
+      .phrase {
+        font-size: 116px;
+        font-weight: 900;
+        color: #ffffff;
+        line-height: 1.1;
+        margin-bottom: 24px;
+        text-shadow: 0 4px 40px rgba(96, 165, 250, 0.4);
+        padding: 0 20px;
+      }
+      .phrase.small { font-size: 88px; }
+      .phrase.xsmall { font-size: 68px; }
+      .kana {
+        font-size: 50px;
+        font-weight: 700;
+        color: #fbbf24;
+        margin-bottom: 36px;
+        font-family: "Noto Sans JP", sans-serif;
+      }
+      .note {
+        font-size: 38px;
+        font-weight: 400;
+        color: #cbd5e1;
+        font-family: "Noto Sans JP", sans-serif;
+        line-height: 1.5;
+        max-width: 880px;
+        padding: 24px 36px;
+        border-left: 6px solid #fbbf24;
+        background: rgba(30, 41, 59, 0.7);
+        border-radius: 12px;
+        text-align: left;
+      }
+      /* ===== フックシーン（保存誘発型に刷新） ===== */
+      .hook-scene { padding-top: 0; justify-content: center; }
+      .hook-scene .hook-top {
+        font-size: 72px;
+        font-weight: 900;
+        color: #ffffff;
+        background: linear-gradient(90deg, #b4822e 0%, #d4a13a 50%, #b4822e 100%);
+        padding: 24px 48px;
+        border-radius: 20px;
+        margin-bottom: 60px;
+        box-shadow: 0 6px 30px rgba(212, 161, 58, 0.5);
+        letter-spacing: 2px;
+      }
+      .hook-scene .hook-phrase {
+        font-size: 140px;
+        font-weight: 900;
+        color: #ffffff;
+        font-family: "Noto Sans JP", sans-serif;
+        line-height: 1.15;
+        padding: 36px 60px;
+        border: 6px solid #fbbf24;
+        border-radius: 28px;
+        margin-bottom: 60px;
+        box-shadow: 0 0 60px rgba(251, 191, 36, 0.5), inset 0 0 30px rgba(251, 191, 36, 0.15);
+        text-shadow: 0 4px 40px rgba(251, 191, 36, 0.6);
+        white-space: nowrap;
+      }
+      .hook-scene .hook-phrase.small { font-size: 108px; }
+      .hook-scene .hook-phrase.xsmall { font-size: 84px; }
+      .hook-scene .hook-bottom {
+        font-size: 60px;
+        font-weight: 900;
+        color: #fbbf24;
+        letter-spacing: 4px;
+        font-family: "Noto Sans JP", sans-serif;
+      }
+      .hook-scene .hook-play {
+        margin-top: 40px;
+        width: 100px;
+        height: 100px;
+        border: 5px solid #fbbf24;
+        border-radius: 50%;
+        background: #d4a13a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      .hook-scene .hook-play::after {
+        content: "";
+        border-left: 32px solid white;
+        border-top: 22px solid transparent;
+        border-bottom: 22px solid transparent;
+        margin-left: 12px;
+      }
+      /* ===== CTAシーン（保存誘発強化） ===== */
+      .cta-scene { padding-top: 0; justify-content: center; }
+      .cta-scene .cta-headline {
+        font-size: 140px;
+        font-weight: 900;
+        color: #ffffff;
+        font-family: "Noto Sans JP", sans-serif;
+        margin-bottom: 40px;
+        text-shadow: 0 4px 50px rgba(251, 191, 36, 0.7);
+        letter-spacing: -2px;
+      }
+      .cta-scene .cta-accent {
+        width: 200px;
+        height: 8px;
+        background: linear-gradient(90deg, transparent, #fbbf24, transparent);
+        margin-bottom: 40px;
+      }
+      .cta-scene .cta-sub {
+        font-size: 52px;
+        font-weight: 700;
+        color: #cbd5e1;
+        font-family: "Noto Sans JP", sans-serif;
+        margin-bottom: 50px;
+      }
+      .cta-scene .cta-benefits {
+        font-size: 46px;
+        font-weight: 400;
+        color: #e2e8f0;
+        font-family: "Noto Sans JP", sans-serif;
+        line-height: 1.7;
+        margin-bottom: 60px;
+      }
+      .cta-scene .cta-btn {
+        font-size: 64px;
+        font-weight: 900;
+        color: #0f172a;
+        background: linear-gradient(90deg, #fbbf24, #f59e0b);
+        padding: 30px 70px;
+        border-radius: 60px;
+        font-family: "Noto Sans JP", sans-serif;
+        margin-bottom: 40px;
+        box-shadow: 0 8px 40px rgba(251, 191, 36, 0.6);
+      }
+      .cta-scene .cta-url {
+        font-size: 52px;
+        font-weight: 700;
+        color: #60a5fa;
+        letter-spacing: 2px;
+      }
+      /* 保存誘発UI（バッジ・中央右ガイド）は削除。CTAの「今すぐ保存🔖」のみに集約 */
+      /* ===== ブランド透かし ===== */
+      .brand {
+        position: absolute;
+        bottom: 80px;
+        width: 100%;
+        text-align: center;
+        font-size: 34px;
+        font-weight: 700;
+        color: #60a5fa;
+        letter-spacing: 6px;
+      }
+      .ko .phrase { font-family: "Noto Sans KR", sans-serif; }
+      .zh .phrase { font-family: "Noto Sans SC", sans-serif; }
+      .th .phrase { font-family: "Noto Sans Thai", sans-serif; }
+      .hi .phrase { font-family: "Noto Sans Devanagari", sans-serif; }
+      .ar .phrase { font-family: "Noto Sans Arabic", sans-serif; direction: rtl; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="49"
+      data-width="1080"
+      data-height="1920"
+    >
+      <!-- ==== HOOK 0-3s（保存誘発型） ==== -->
+      <div id="hook" class="clip scene hook-scene"
+           data-start="0" data-duration="3" data-track-index="0">
+        <div class="hook-top">旅行前に絶対保存する🔖</div>
+        <div class="hook-phrase small">「おはよう」</div>
+        <div class="hook-bottom">8言語 / ネイティブ音声つき</div>
+        <div class="hook-play"></div>
+      </div>
+
+      <!-- ==== 1. 韓国語 3-8s ==== -->
+      <div id="ko" class="clip scene ko"
+           data-start="3" data-duration="5" data-track-index="0">
+        <div class="counter">01 / 08</div>
+        <div class="avatar-wrap">
+          <img class="avatar" src="assets/ko.jpeg" alt="" />
+          <div class="flag-badge">🇰🇷</div>
+        </div>
+        <div class="label">Korean</div>
+        <div class="phrase">안녕하세요</div>
+        <div class="kana">アンニョンハセヨ</div>
+        <div class="note">朝昼晩すべて使える万能挨拶。親しい人には「안녕」だけでもOK。</div>
+      </div>
+
+      <!-- 2. 中国語 8-13s -->
+      <div id="zh" class="clip scene zh"
+           data-start="8" data-duration="5" data-track-index="0">
+        <div class="counter">02 / 08</div>
+        <div class="avatar-wrap">
+          <img class="avatar" src="assets/zh.jpeg" alt="" />
+          <div class="flag-badge">🇨🇳</div>
+        </div>
+        <div class="label">Chinese</div>
+        <div class="phrase">早上好</div>
+        <div class="kana">ザオシャンハオ</div>
+        <div class="note">直訳は「朝、良いですね」。友達には「早（ザオ）」だけでも通じる。</div>
+      </div>
+
+      <!-- 3. タイ語 13-18s -->
+      <div id="th" class="clip scene th"
+           data-start="13" data-duration="5" data-track-index="0">
+        <div class="counter">03 / 08</div>
+        <div class="avatar-wrap">
+          <img class="avatar" src="assets/th.jpeg" alt="" />
+          <div class="flag-badge">🇹🇭</div>
+        </div>
+        <div class="label">Thai</div>
+        <div class="phrase xsmall">สวัสดีตอนเช้า</div>
+        <div class="kana">サワディー トーンチャーオ</div>
+        <div class="note">男性は語尾にครับ（クラップ）、女性はค่ะ（カー）をつけると丁寧。</div>
+      </div>
+
+      <!-- 4. ベトナム語 18-23s -->
+      <div id="vi" class="clip scene vi"
+           data-start="18" data-duration="5" data-track-index="0">
+        <div class="counter">04 / 08</div>
+        <div class="avatar-wrap">
+          <img class="avatar" src="assets/vi.jpeg" alt="" />
+          <div class="flag-badge">🇻🇳</div>
+        </div>
+        <div class="label">Vietnamese</div>
+        <div class="phrase small">Chào buổi sáng</div>
+        <div class="kana">チャオ ブオイ サーン</div>
+        <div class="note">ベトナム語は声調が6つ。発音は少し注意が必要。</div>
+      </div>
+
+      <!-- 5. インドネシア語 23-28s -->
+      <div id="id-scene" class="clip scene id-scene"
+           data-start="23" data-duration="5" data-track-index="0">
+        <div class="counter">05 / 08</div>
+        <div class="avatar-wrap">
+          <img class="avatar" src="assets/id.jpeg" alt="" />
+          <div class="flag-badge">🇮🇩</div>
+        </div>
+        <div class="label">Indonesian</div>
+        <div class="phrase small">Selamat pagi</div>
+        <div class="kana">スラマッ パギ</div>
+        <div class="note">時間帯で変わる挨拶。カジュアルには「Pagi!」だけでもOK。</div>
+      </div>
+
+      <!-- 6. ヒンディー語 28-33s -->
+      <div id="hi" class="clip scene hi"
+           data-start="28" data-duration="5" data-track-index="0">
+        <div class="counter">06 / 08</div>
+        <div class="avatar-wrap">
+          <img class="avatar" src="assets/hi.jpeg" alt="" />
+          <div class="flag-badge">🇮🇳</div>
+        </div>
+        <div class="label">Hindi</div>
+        <div class="phrase">सुप्रभात</div>
+        <div class="kana">スプラバート</div>
+        <div class="note">フォーマル寄り。日常は「नमस्ते（ナマステ）」が万能で使いやすい。</div>
+      </div>
+
+      <!-- 7. アラビア語 33-38s -->
+      <div id="ar" class="clip scene ar"
+           data-start="33" data-duration="5" data-track-index="0">
+        <div class="counter">07 / 08</div>
+        <div class="avatar-wrap">
+          <img class="avatar" src="assets/ar.jpeg" alt="" />
+          <div class="flag-badge">🇸🇦</div>
+        </div>
+        <div class="label">Arabic</div>
+        <div class="phrase small">صباح الخير</div>
+        <div class="kana">サバーフ アル ハイル</div>
+        <div class="note">返しは「صباح النور（サバーフ アン ヌール＝光の朝）」がお約束。</div>
+      </div>
+
+      <!-- 8. トルコ語 38-43s -->
+      <div id="tr" class="clip scene tr"
+           data-start="38" data-duration="5" data-track-index="0">
+        <div class="counter">08 / 08</div>
+        <div class="avatar-wrap">
+          <img class="avatar" src="assets/tr.jpeg" alt="" />
+          <div class="flag-badge">🇹🇷</div>
+        </div>
+        <div class="label">Turkish</div>
+        <div class="phrase">Günaydın</div>
+        <div class="kana">ギュナイドゥン</div>
+        <div class="note">直訳は「明るい日」。朝専用の挨拶で、フォーマルでもカジュアルでも使える。</div>
+      </div>
+
+      <!-- ==== CTA 43-49s（保存誘発強化） ==== -->
+      <div id="cta" class="clip scene cta-scene"
+           data-start="43" data-duration="6" data-track-index="0">
+        <div class="cta-headline">今すぐ保存🔖</div>
+        <div class="cta-accent"></div>
+        <div class="cta-sub">旅先でスマホ見ながら発音できる</div>
+        <div class="cta-benefits">
+          旅行前に保存しておけば<br>
+          現地でさっと取り出せる<br>
+          8言語まるごと旅の味方🎧
+        </div>
+        <div class="cta-btn">🔖 保存して旅で使う</div>
+        <div class="cta-url">sekai-kotoba.com</div>
+      </div>
+
+      <!-- ブランド透かし（全尺） -->
+      <div id="brand" class="clip brand"
+           data-start="0" data-duration="49" data-track-index="1">
+        @sekakoto_dict
+      </div>
+
+      <!-- 音声トラック（各言語のTTS） -->
+      <audio id="audio-ko" src="assets/ko.mp3" data-start="4.2" data-duration="3" data-track-index="3" data-volume="1"></audio>
+      <audio id="audio-zh" src="assets/zh.mp3" data-start="9.2" data-duration="3" data-track-index="3" data-volume="1"></audio>
+      <audio id="audio-th" src="assets/th.mp3" data-start="14.2" data-duration="3" data-track-index="3" data-volume="1"></audio>
+      <audio id="audio-vi" src="assets/vi.mp3" data-start="19.2" data-duration="3" data-track-index="3" data-volume="1"></audio>
+      <audio id="audio-id" src="assets/id.mp3" data-start="24.2" data-duration="3" data-track-index="3" data-volume="1"></audio>
+      <audio id="audio-hi" src="assets/hi.mp3" data-start="29.2" data-duration="3" data-track-index="3" data-volume="1"></audio>
+      <audio id="audio-ar" src="assets/ar.mp3" data-start="34.2" data-duration="3" data-track-index="3" data-volume="1"></audio>
+      <audio id="audio-tr" src="assets/tr.mp3" data-start="39.2" data-duration="3" data-track-index="3" data-volume="1"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // HOOK（保存誘発型）— フレーム0で要素が見えるよう opacity フェードは使わない
+      tl.from("#hook .hook-top", { y: -40, duration: 0.5, ease: "back.out(1.7)" }, 0);
+      tl.from("#hook .hook-phrase", { scale: 0.7, duration: 0.7, ease: "back.out(1.5)" }, 0.3);
+      tl.from("#hook .hook-bottom", { y: 30, duration: 0.5 }, 0.9);
+      tl.from("#hook .hook-play", { scale: 0.3, rotation: -180, duration: 0.6, ease: "back.out(2)" }, 1.2);
+      // フック中のパルス効果（押したくなる）
+      tl.to("#hook .hook-phrase", { scale: 1.03, duration: 0.3, yoyo: true, repeat: 3, ease: "power1.inOut" }, 1.5);
+
+      // 8言語シーン
+      const langs = [
+        { id: "ko", start: 3 },
+        { id: "zh", start: 8 },
+        { id: "th", start: 13 },
+        { id: "vi", start: 18 },
+        { id: "id-scene", start: 23 },
+        { id: "hi", start: 28 },
+        { id: "ar", start: 33 },
+        { id: "tr", start: 38 },
+      ];
+      langs.forEach(({ id, start }) => {
+        tl.from(`#${id} .counter`, { opacity: 0, y: -20, duration: 0.4 }, start);
+        tl.from(`#${id} .avatar-wrap`, { scale: 0.3, opacity: 0, duration: 0.7, ease: "back.out(1.5)" }, start + 0.1);
+        tl.from(`#${id} .flag-badge`, { scale: 0, duration: 0.5, ease: "back.out(2)" }, start + 0.6);
+        tl.from(`#${id} .label`, { opacity: 0, y: -20, duration: 0.4 }, start + 0.3);
+        tl.from(`#${id} .phrase`, { opacity: 0, scale: 0.7, duration: 0.7, ease: "power3.out" }, start + 0.9);
+        tl.from(`#${id} .kana`, { opacity: 0, y: 20, duration: 0.5 }, start + 1.4);
+        tl.from(`#${id} .note`, { opacity: 0, x: -40, duration: 0.7, ease: "power2.out" }, start + 1.8);
+      });
+
+      // CTA
+      tl.from("#cta .cta-headline", { opacity: 0, scale: 0.6, duration: 0.7, ease: "back.out(1.7)" }, 43);
+      tl.from("#cta .cta-accent", { scaleX: 0, duration: 0.5 }, 43.6);
+      tl.from("#cta .cta-sub", { opacity: 0, y: 30, duration: 0.5 }, 43.9);
+      tl.from("#cta .cta-benefits", { opacity: 0, y: 30, duration: 0.6 }, 44.3);
+      tl.from("#cta .cta-btn", { opacity: 0, scale: 0.7, duration: 0.6, ease: "back.out(1.5)" }, 44.9);
+      tl.to("#cta .cta-btn", { scale: 1.05, duration: 0.4, yoyo: true, repeat: 3, ease: "power1.inOut" }, 45.5);
+      tl.from("#cta .cta-url", { opacity: 0, y: 20, duration: 0.5 }, 45.3);
+
+      // ブランド — フレーム0で可視にするため y 方向のみ
+      tl.from("#brand", { y: 20, duration: 1 }, 0);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

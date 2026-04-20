@@ -81,6 +81,12 @@ def gen_tts(text: str, lang_code: str, out_path: Path):
 
 
 HOOK_PATTERNS = [
+    # v2: 保存誘発・損失回避を強化（2026-04-20 insights反映）
+    {"top": "旅行前に絶対保存するやつ", "bottom": "スクショで永久保存📱"},
+    {"top": "これ知らずに海外行くと詰む", "bottom": "1本で8言語マスター"},
+    {"top": "友達に送ると『天才』扱い", "bottom": "8言語の神フレーズ"},
+    {"top": "旅先でスマホ見返す用🔖", "bottom": "保存→旅行で使う"},
+    # v1（既存・残置）
     {"top": "旅先でこれ言えなかったら…", "bottom": "8言語ネイティブ発音"},
     {"top": "これ、8言語で言える？", "bottom": "全部聞いてみて"},
     {"top": "1つだけ発音が超意外", "bottom": "どの言語かわかる？"},
@@ -88,37 +94,171 @@ HOOK_PATTERNS = [
 ]
 
 
+def _draw_hook_enhanced(img: Image.Image, d: ImageDraw.ImageDraw, phrase: str, pat: dict, cta_label: str = "音声で聞く"):
+    """共通のフック描画ロジック（改善版）。"""
+    W, H = img.size
+
+    # --- 背景にサブトルなグラデーション風の縦ストライプ ---
+    for y in range(H):
+        r = int(55 + 15 * (y / H))
+        g = int(45 + 10 * (y / H))
+        b = int(40 + 8 * (y / H))
+        d.line([(0, y), (W, y)], fill=(r, g, b))
+
+    # --- 装飾: 上部と下部にゴールドの細線 ---
+    for y_line in [280, 285]:
+        d.line([(100, y_line), (W - 100, y_line)], fill=(215, 165, 90, 80), width=1)
+    for y_line in [1100, 1105]:
+        d.line([(100, y_line), (W - 100, y_line)], fill=(215, 165, 90, 80), width=1)
+
+    # --- 上部テキスト（感情フック）+ 半透明アクセント帯 ---
+    f1 = ImageFont.truetype(FONT_TOPPAN, 78)
+    q = pat["top"]
+    bbox = d.textbbox((0, 0), q, font=f1)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+    text_y = 340
+    pad_x, pad_y = 40, 18
+    # アクセント帯（暗めのゴールド系）
+    band_left = (W - tw) / 2 - pad_x
+    band_right = (W + tw) / 2 + pad_x
+    d.rounded_rectangle(
+        [(band_left, text_y - pad_y), (band_right, text_y + th + pad_y)],
+        radius=16, fill=(180, 130, 50)
+    )
+    d.text(((W - tw) / 2, text_y), q, font=f1, fill=(255, 250, 235))
+
+    # --- フレーズ（大きく目立つ）+ ゴールド枠 ---
+    for sz in range(220, 80, -10):
+        f2 = ImageFont.truetype(FONT_TOPPAN, sz)
+        bbox = d.textbbox((0, 0), f"「{phrase}」", font=f2)
+        if bbox[2] - bbox[0] <= W - 120:
+            break
+    pt = f"「{phrase}」"
+    bbox = d.textbbox((0, 0), pt, font=f2)
+    pw = bbox[2] - bbox[0]
+    ph = bbox[3] - bbox[1]
+    phrase_y = 520
+
+    # ゴールド枠（角丸矩形）
+    frame_pad_x, frame_pad_y = 50, 30
+    fx0 = (W - pw) / 2 - frame_pad_x
+    fy0 = phrase_y - frame_pad_y
+    fx1 = (W + pw) / 2 + frame_pad_x
+    fy1 = phrase_y + ph + frame_pad_y
+    d.rounded_rectangle([(fx0, fy0), (fx1, fy1)], radius=24, outline=(235, 195, 100), width=4)
+    # 内側にもう一本薄い線（光る効果）
+    d.rounded_rectangle([(fx0 + 6, fy0 + 6), (fx1 - 6, fy1 - 6)], radius=20, outline=(255, 225, 140), width=2)
+    # コーナー装飾（四隅に小さなダイヤ）
+    for cx, cy in [(fx0, fy0), (fx1, fy0), (fx0, fy1), (fx1, fy1)]:
+        d.polygon([(cx, cy - 8), (cx + 8, cy), (cx, cy + 8), (cx - 8, cy)], fill=(235, 195, 100))
+
+    d.text(((W - pw) / 2, phrase_y), pt, font=f2, fill=(255, 253, 248))
+
+    # --- 下部テキスト（行動促進）---
+    f3 = ImageFont.truetype(FONT_TOPPAN, 78)
+    k = pat["bottom"]
+    bbox = d.textbbox((0, 0), k, font=f3)
+    kw = bbox[2] - bbox[0]
+    d.text(((W - kw) / 2, 810), k, font=f3, fill=ACCENT)
+
+    # --- 区切り線（グラデーション風：左右フェード）---
+    line_y = 960
+    line_half = 180
+    for i in range(line_half):
+        alpha_ratio = i / line_half
+        r = int(55 + (215 - 55) * alpha_ratio)
+        g = int(45 + (165 - 45) * alpha_ratio)
+        b = int(40 + (90 - 40) * alpha_ratio)
+        d.line([(W // 2 - line_half + i, line_y), (W // 2 - line_half + i, line_y + 5)], fill=(r, g, b))
+    for i in range(line_half):
+        alpha_ratio = 1.0 - i / line_half
+        r = int(55 + (215 - 55) * alpha_ratio)
+        g = int(45 + (165 - 45) * alpha_ratio)
+        b = int(40 + (90 - 40) * alpha_ratio)
+        d.line([(W // 2 + i, line_y), (W // 2 + i, line_y + 5)], fill=(r, g, b))
+
+    # --- 再生ボタン風の丸い図形 + CTAラベル ---
+    btn_cx = W // 2
+    btn_cy = 1080
+    btn_r = 48
+    # 外側リング（ゴールド）
+    d.ellipse([(btn_cx - btn_r, btn_cy - btn_r), (btn_cx + btn_r, btn_cy + btn_r)],
+              fill=None, outline=(235, 195, 100), width=4)
+    # 内側塗り
+    d.ellipse([(btn_cx - btn_r + 6, btn_cy - btn_r + 6), (btn_cx + btn_r - 6, btn_cy + btn_r - 6)],
+              fill=(215, 165, 90))
+    # 三角再生マーク（白）
+    tri_offset = 6
+    d.polygon([
+        (btn_cx - 12 + tri_offset, btn_cy - 18),
+        (btn_cx - 12 + tri_offset, btn_cy + 18),
+        (btn_cx + 16 + tri_offset, btn_cy),
+    ], fill=(255, 255, 255))
+    # CTAテキスト
+    f_btn = ImageFont.truetype(FONT_TOPPAN, 44)
+    cta_text = f"▶ {cta_label}"
+    bbox = d.textbbox((0, 0), cta_text, font=f_btn)
+    d.text(((W - (bbox[2] - bbox[0])) / 2, btn_cy + btn_r + 20), cta_text, font=f_btn, fill=(220, 210, 195))
+
+    # --- アカウント名 ---
+    f5 = ImageFont.truetype(FONT_TOPPAN, 48)
+    d.text(((W - d.textbbox((0, 0), "@sekakoto_dict", font=f5)[2]) / 2, H - 160),
+           "@sekakoto_dict", font=f5, fill=(220, 210, 195))
+
+    # --- 保存誘発バッジ（右上） + 矢印 ---
+    _draw_save_badge(d, W, H)
+
+
+def _draw_save_badge(d: ImageDraw.ImageDraw, W: int, H: int):
+    """右上の🔖保存バッジ＋矢印を描画（IG右上の保存アイコンへ視線誘導）。"""
+    # バッジ本体（ブックマーク型、右上）
+    bx, by = W - 200, 140  # 右上角
+    bw, bh = 140, 180
+    # ゴールドの本体
+    d.polygon([
+        (bx, by),
+        (bx + bw, by),
+        (bx + bw, by + bh),
+        (bx + bw // 2, by + bh - 40),  # V字切り込み
+        (bx, by + bh),
+    ], fill=(235, 195, 100), outline=(255, 255, 255))
+    # 白い縁取り（輝き）
+    for offset in range(1, 4):
+        d.polygon([
+            (bx - offset, by - offset),
+            (bx + bw + offset, by - offset),
+            (bx + bw + offset, by + bh - 40 + offset),
+            (bx + bw // 2, by + bh - 40 - offset),
+            (bx - offset, by + bh - 40 + offset),
+        ], outline=(255, 240, 200, 60))
+    # バッジ中央に「保存」
+    f_save = ImageFont.truetype(FONT_TOPPAN, 44)
+    save_text = "保存"
+    bbox = d.textbbox((0, 0), save_text, font=f_save)
+    sw = bbox[2] - bbox[0]
+    sh = bbox[3] - bbox[1]
+    d.text((bx + (bw - sw) / 2, by + 50), save_text, font=f_save, fill=(55, 45, 40))
+
+    # 「←コレ」矢印（バッジ左側、やや下）
+    ax, ay = bx - 30, by + 60
+    f_arrow = ImageFont.truetype(FONT_TOPPAN, 56)
+    arrow_text = "←押して"
+    bbox = d.textbbox((0, 0), arrow_text, font=f_arrow)
+    aw = bbox[2] - bbox[0]
+    # 黒背景で視認性確保
+    d.rounded_rectangle(
+        [(ax - aw - 20, ay - 10), (ax + 10, ay + 70)],
+        radius=14, fill=(55, 45, 40, 200)
+    )
+    d.text((ax - aw, ay), arrow_text, font=f_arrow, fill=(255, 253, 248))
+
+
 def draw_hook(phrase: str, path: Path, pattern_idx: int = 0):
     pat = HOOK_PATTERNS[pattern_idx % len(HOOK_PATTERNS)]
     img = Image.new("RGB", (REEL_W, REEL_H), (55, 45, 40))
     d = ImageDraw.Draw(img)
-
-    # 上部テキスト（感情フック）
-    f1 = ImageFont.truetype(FONT_TOPPAN, 78)
-    q = pat["top"]
-    bbox = d.textbbox((0, 0), q, font=f1)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 360), q, font=f1, fill=(220, 210, 195))
-
-    # フレーズ（大きく目立つ）
-    for sz in range(220, 80, -10):
-        f2 = ImageFont.truetype(FONT_TOPPAN, sz)
-        bbox = d.textbbox((0, 0), f"「{phrase}」", font=f2)
-        if bbox[2]-bbox[0] <= REEL_W - 120:
-            break
-    pt = f"「{phrase}」"
-    bbox = d.textbbox((0, 0), pt, font=f2)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 530), pt, font=f2, fill=(255, 253, 248))
-
-    # 下部テキスト（行動促進）
-    f3 = ImageFont.truetype(FONT_TOPPAN, 78)
-    k = pat["bottom"]
-    bbox = d.textbbox((0, 0), k, font=f3)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 810), k, font=f3, fill=ACCENT)
-
-    d.rectangle([(REEL_W/2-150, 960), (REEL_W/2+150, 968)], fill=ACCENT)
-
-    f5 = ImageFont.truetype(FONT_TOPPAN, 48)
-    d.text(((REEL_W - d.textbbox((0,0),"@sekakoto_dict",font=f5)[2]) / 2, REEL_H - 160), "@sekakoto_dict", font=f5, fill=(220, 210, 195))
+    _draw_hook_enhanced(img, d, phrase, pat, cta_label="音声で聞く")
     img.save(path, "JPEG", quality=92)
 
 
@@ -192,21 +332,25 @@ def draw_cta(path: Path):
     img = Image.new("RGB", (REEL_W, REEL_H), BG_COLOR)
     d = ImageDraw.Draw(img)
     d.rectangle([(0, 0), (REEL_W, 700)], fill=(55, 45, 40))
+    # 大タイトル：保存を直接指示（保存誘発強化）
     f1 = ImageFont.truetype(FONT_TOPPAN, 130)
-    msg = "保存しておこう"
+    msg = "今すぐ保存🔖"
     bbox = d.textbbox((0, 0), msg, font=f1)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 220), msg, font=f1, fill=(255, 253, 248))
-    d.rectangle([(REEL_W/2-110, 410), (REEL_W/2+110, 420)], fill=ACCENT)
-    f2 = ImageFont.truetype(FONT_TSUKUSHI, 58)
-    s = "発音を繰り返し練習しよう"
+    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 200), msg, font=f1, fill=(255, 253, 248))
+    d.rectangle([(REEL_W/2-110, 400), (REEL_W/2+110, 410)], fill=ACCENT)
+    # サブメッセージ：行動の具体化
+    f2 = ImageFont.truetype(FONT_TSUKUSHI, 54)
+    s = "旅先でスマホ見ながら発音できる"
     bbox = d.textbbox((0, 0), s, font=f2)
-    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 470), s, font=f2, fill=(220, 210, 195))
+    d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 460), s, font=f2, fill=(220, 210, 195))
+    # 保存する理由（ベネフィット）
     f3 = ImageFont.truetype(FONT_TSUKUSHI, 58)
-    for i, line in enumerate(["世界8言語のフレーズ辞典", "毎日自動更新", "音声付きリールも配信中🎧"]):
+    for i, line in enumerate(["旅行前に保存しておけば", "現地でさっと取り出せる", "8言語まるごと旅の味方🎧"]):
         bbox = d.textbbox((0, 0), line, font=f3)
         d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 830 + i * 110), line, font=f3, fill=TEXT_PRIMARY)
+    # CTAボタン：保存動線をフォローより前に
     f4 = ImageFont.truetype(FONT_TOPPAN, 70)
-    fb = "フォローしてね"
+    fb = "🔖 保存して旅で使う"
     bbox = d.textbbox((0, 0), fb, font=f4)
     w = bbox[2] - bbox[0]
     pad = 40
@@ -220,6 +364,8 @@ def draw_cta(path: Path):
     url = "sekai-kotoba.com"
     bbox = d.textbbox((0, 0), url, font=f6)
     d.text(((REEL_W - (bbox[2]-bbox[0])) / 2, 1600), url, font=f6, fill=(140, 125, 115))
+    # 右上の保存バッジ誘導（再度強調）
+    _draw_save_badge(d, REEL_W, REEL_H)
     img.save(path, "JPEG", quality=92)
 
 
