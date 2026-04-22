@@ -1,11 +1,13 @@
 name: Instagram Auto Post (Voice + Convo Reel)
 
 on:
-  schedule:
-    # JSTの朝7:00 = UTC前日22:00 → 音声Reel
-    - cron: "0 22 * * *"
-    # JSTの夜21:00 = UTC同日12:00 → 会話アニメReel
-    - cron: "0 12 * * *"
+  # 2026-04-22: reach急落+save=0 で一時停止。v12 ポップ版の成否判断後に再開予定。
+  # 再開手順: 下の schedule ブロックのコメント解除 → commit & push
+  # schedule:
+  #   # JSTの朝7:00 = UTC前日22:00 → 音声Reel
+  #   - cron: "0 22 * * *"
+  #   # JSTの夜21:00 = UTC同日12:00 → 会話アニメReel
+  #   - cron: "0 12 * * *"
   workflow_dispatch:  # 手動実行用
     inputs:
       type:
