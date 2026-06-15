@@ -4,9 +4,10 @@ name: Instagram Auto Post (Hyperframes Reel)
 # 事前レンダ済テーマの在庫が尽きたら自動停止（publish_hf_next.py が exit 0 する）
 
 on:
-  schedule:
-    # JSTの08:00 = UTC 23:00（前日）
-    - cron: "0 23 * * *"
+  # 自動実行停止（監査により cron 無効化 2026-06-15）— 手動実行(workflow_dispatch)のみ残す
+  # schedule:
+  #   # JSTの08:00 = UTC 23:00（前日）
+  #   - cron: "0 23 * * *"
   workflow_dispatch:  # 手動実行
 
 jobs:
